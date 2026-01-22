@@ -104,6 +104,7 @@ describe('GET /api/posts', () => {
   });
 
   it('should return 500 on database error', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockPrisma.post.findMany.mockRejectedValue(new Error('Database error'));
 
     const { GET } = await import('@/app/api/posts/route');
@@ -113,6 +114,7 @@ describe('GET /api/posts', () => {
 
     expect(response.status).toBe(500);
     expect(data).toHaveProperty('error');
+    consoleSpy.mockRestore();
   });
 });
 
@@ -163,6 +165,7 @@ describe('DELETE /api/posts/[id]', () => {
   });
 
   it('should return 500 on database error during delete', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockPrisma.post.findUnique.mockResolvedValue({ id: 1 });
     mockPrisma.post.delete.mockRejectedValue(new Error('Database error'));
 
@@ -175,5 +178,6 @@ describe('DELETE /api/posts/[id]', () => {
 
     expect(response.status).toBe(500);
     expect(data).toHaveProperty('error');
+    consoleSpy.mockRestore();
   });
 });
