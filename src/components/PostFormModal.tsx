@@ -82,26 +82,26 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-taupe-950/50 dark:bg-black/60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="form-title"
-        className="bg-taupe-50 dark:bg-taupe-900 rounded-md p-6 max-w-lg w-full mx-4 shadow-xl"
+        className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl"
       >
-        <h2 id="form-title" className="text-xl font-semibold text-taupe-950 dark:text-white mb-4">
+        <h2 id="form-title" className="text-xl font-semibold text-white mb-4">
           {isEditing ? 'Edit Post' : 'Create New Post'}
         </h2>
 
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-2 rounded-md mb-4 text-sm">
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="title" className="block text-sm font-medium text-taupe-700 dark:text-taupe-300 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-[#9CA3AF] mb-2">
               Title
             </label>
             <input
@@ -110,12 +110,13 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-white dark:bg-taupe-950 border border-taupe-300 dark:border-taupe-700 rounded-md text-taupe-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-taupe-500 dark:focus:ring-taupe-400"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF]/50 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all"
+              placeholder="Enter post title..."
             />
           </div>
 
           <div className="mb-4">
-            <label htmlFor="body" className="block text-sm font-medium text-taupe-700 dark:text-taupe-300 mb-1">
+            <label htmlFor="body" className="block text-sm font-medium text-[#9CA3AF] mb-2">
               Body
             </label>
             <textarea
@@ -124,13 +125,14 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
               onChange={(e) => setBody(e.target.value)}
               required
               rows={4}
-              className="w-full px-3 py-2 bg-white dark:bg-taupe-950 border border-taupe-300 dark:border-taupe-700 rounded-md text-taupe-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-taupe-500 dark:focus:ring-taupe-400 resize-none"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF]/50 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all resize-none"
+              placeholder="Write your post content..."
             />
           </div>
 
           {!isEditing && (
             <div className="mb-6">
-              <label htmlFor="userId" className="block text-sm font-medium text-taupe-700 dark:text-taupe-300 mb-1">
+              <label htmlFor="userId" className="block text-sm font-medium text-[#9CA3AF] mb-2">
                 Author
               </label>
               <select
@@ -139,13 +141,19 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
                 onChange={(e) => setUserId(e.target.value)}
                 required
                 disabled={loadingUsers}
-                className="w-full px-3 py-2 bg-white dark:bg-taupe-950 border border-taupe-300 dark:border-taupe-700 rounded-md text-taupe-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-taupe-500 dark:focus:ring-taupe-400 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all disabled:opacity-50 appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px center',
+                  backgroundSize: '20px',
+                }}
               >
                 {loadingUsers ? (
                   <option value="">Loading users...</option>
                 ) : (
                   users.map((user) => (
-                    <option key={user.id} value={user.id}>
+                    <option key={user.id} value={user.id} className="bg-[#0a0a0a] text-white">
                       {user.name} (@{user.username})
                     </option>
                   ))
@@ -159,14 +167,14 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
               type="button"
               onClick={onCancel}
               disabled={saving}
-              className="px-4 py-2 rounded-full text-sm/7 font-medium bg-taupe-950/10 hover:bg-taupe-950/15 text-taupe-950 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-full text-sm font-medium bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-full text-sm/7 font-medium bg-taupe-950 hover:bg-taupe-800 text-white dark:bg-taupe-300 dark:hover:bg-taupe-200 dark:text-taupe-950 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-full text-sm font-medium bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors disabled:opacity-50"
             >
               {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Post'}
             </button>
