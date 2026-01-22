@@ -5,6 +5,26 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userIdParam = searchParams.get('userId');
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+
+    // Pagination defaults
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    const limit = limitParam ? parseInt(limitParam, 10) : 10;
+
+    if (isNaN(page) || page < 1) {
+      return NextResponse.json(
+        { error: 'Invalid page parameter' },
+        { status: 400 }
+      );
+    }
+
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid limit parameter (must be 1-100)' },
+        { status: 400 }
+      );
+    }
 
     let where = {};
     if (userIdParam) {
@@ -18,17 +38,25 @@ export async function GET(request: Request) {
       where = { userId };
     }
 
-    const posts = await prisma.post.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            name: true,
-            username: true,
+    const skip = (page - 1) * limit;
+
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { id: 'desc' },
+        include: {
+          user: {
+            select: {
+              name: true,
+              username: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.post.count({ where }),
+    ]);
 
     const postsWithAuthor = posts.map((post) => ({
       id: post.id,
@@ -41,7 +69,16 @@ export async function GET(request: Request) {
       },
     }));
 
-    return NextResponse.json(postsWithAuthor);
+    return NextResponse.json({
+      data: postsWithAuthor,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + posts.length < total,
+      },
+    });
   } catch (error) {
     console.error('Error fetching posts:', error);
     return NextResponse.json(

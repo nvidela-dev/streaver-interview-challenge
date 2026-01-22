@@ -1,40 +1,101 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { PostWithAuthor } from '@/types';
 import { PostCard } from '@/components/PostCard';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { PostFormModal } from '@/components/PostFormModal';
 
+const POSTS_PER_PAGE = 10;
+
+interface PaginatedResponse {
+  data: PostWithAuthor[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
 export default function PostsPage() {
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [postToDelete, setPostToDelete] = useState<number | null>(null);
   const [postToEdit, setPostToEdit] = useState<PostWithAuthor | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  async function fetchPosts() {
+  const fetchPosts = useCallback(async (pageNum: number, append = false) => {
     try {
-      setLoading(true);
+      if (pageNum === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
-      const response = await fetch('/api/posts');
+
+      const response = await fetch(`/api/posts?page=${pageNum}&limit=${POSTS_PER_PAGE}`);
       if (!response.ok) {
         throw new Error('Failed to fetch posts');
       }
-      const data = await response.json();
-      setPosts(data);
+
+      const result: PaginatedResponse = await response.json();
+
+      if (append) {
+        setPosts((prev) => [...prev, ...result.data]);
+      } else {
+        setPosts(result.data);
+      }
+      setHasMore(result.pagination.hasMore);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchPosts(1);
+  }, [fetchPosts]);
+
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loading, loadingMore, hasMore]);
+
+  useEffect(() => {
+    if (page > 1) {
+      fetchPosts(page, true);
+    }
+  }, [page, fetchPosts]);
 
   async function handleDelete(id: number) {
     try {
@@ -145,6 +206,16 @@ export default function PostsPage() {
                 onDelete={openDeleteModal}
               />
             ))}
+
+            {/* Infinite scroll trigger */}
+            <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+              {loadingMore && (
+                <p className="text-stone-400">Loading more posts...</p>
+              )}
+              {!hasMore && posts.length > 0 && (
+                <p className="text-stone-500">No more posts</p>
+              )}
+            </div>
           </div>
         )}
 
