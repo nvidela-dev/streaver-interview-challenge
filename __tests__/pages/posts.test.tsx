@@ -39,13 +39,27 @@ beforeEach(() => {
   mockFetch.mockClear();
 });
 
+// Helper to create paginated response
+function createPaginatedResponse(posts: PostWithAuthor[]) {
+  return {
+    data: posts,
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: posts.length,
+      totalPages: 1,
+      hasMore: false,
+    },
+  };
+}
+
 // Helper to set up successful fetch responses
 function mockFetchSuccess(posts: PostWithAuthor[] = mockPosts) {
   mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-    if (url === '/api/posts' && (!options || options.method !== 'DELETE')) {
+    if (url.startsWith('/api/posts?') && (!options || options.method !== 'DELETE')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(posts),
+        json: () => Promise.resolve(createPaginatedResponse(posts)),
       });
     }
     if (url.match(/\/api\/posts\/\d+/) && options?.method === 'DELETE') {
@@ -70,10 +84,10 @@ function mockFetchError() {
 
 function mockDeleteError() {
   mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-    if (url === '/api/posts') {
+    if (url.startsWith('/api/posts?')) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockPosts),
+        json: () => Promise.resolve(createPaginatedResponse(mockPosts)),
       });
     }
     if (options?.method === 'DELETE') {
