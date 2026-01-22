@@ -6,6 +6,13 @@ import { PostCard } from '@/components/PostCard';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { PostFormModal } from '@/components/PostFormModal';
 import { IconButton, PlusIcon } from '@/components/IconButton';
+import { FilterButton } from '@/components/FilterButton';
+
+interface User {
+  id: number;
+  name: string;
+  username: string;
+}
 
 const POSTS_PER_PAGE = 10;
 
@@ -31,11 +38,13 @@ export default function PostsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchPosts = useCallback(async (pageNum: number, append = false) => {
+  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number) => {
     try {
       if (pageNum === 1) {
         setLoading(true);
@@ -44,7 +53,15 @@ export default function PostsPage() {
       }
       setError(null);
 
-      const response = await fetch(`/api/posts?page=${pageNum}&limit=${POSTS_PER_PAGE}`);
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: POSTS_PER_PAGE.toString(),
+      });
+      if (userId) {
+        params.set('userId', userId.toString());
+      }
+
+      const response = await fetch(`/api/posts?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch posts');
       }
@@ -66,8 +83,24 @@ export default function PostsPage() {
   }, []);
 
   useEffect(() => {
-    fetchPosts(1);
-  }, [fetchPosts]);
+    async function fetchUsers() {
+      try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+      }
+    }
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+    fetchPosts(1, false, selectedUser?.id);
+  }, [fetchPosts, selectedUser]);
 
   useEffect(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -94,9 +127,9 @@ export default function PostsPage() {
 
   useEffect(() => {
     if (page > 1) {
-      fetchPosts(page, true);
+      fetchPosts(page, true, selectedUser?.id);
     }
-  }, [page, fetchPosts]);
+  }, [page, fetchPosts, selectedUser]);
 
   async function handleDelete(id: number) {
     try {
@@ -181,12 +214,19 @@ export default function PostsPage() {
       <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
         <div className="flex justify-between items-center mb-10">
           <h1 className="text-3xl font-semibold text-white">Our Latest News</h1>
-          <IconButton
-            icon={<PlusIcon />}
-            label="New Post"
-            variant="primary"
-            onClick={() => setShowCreateModal(true)}
-          />
+          <div className="flex items-center gap-2">
+            <FilterButton
+              users={users}
+              selectedUser={selectedUser}
+              onSelectUser={setSelectedUser}
+            />
+            <IconButton
+              icon={<PlusIcon />}
+              label="New Post"
+              variant="primary"
+              onClick={() => setShowCreateModal(true)}
+            />
+          </div>
         </div>
 
         {deleteError && (
