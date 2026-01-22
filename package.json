@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
-    "db:test": "tsx prisma/seed.test.ts"
+    "db:test": "tsx prisma/seed.test.ts",
+    "test:integration": "./scripts/integration-test.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
