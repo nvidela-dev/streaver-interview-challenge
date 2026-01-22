@@ -9,7 +9,16 @@
       "Bash(npm run lint:*)",
       "Bash(npm run build:*)",
       "Bash(chmod:*)",
-      "Bash(npm run test:integration:*)"
+      "Bash(npm run test:integration:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd frontend tests for posts page \\(TDD\\)\n\n- Tests for posts listing with author info\n- Tests for delete button and confirmation modal\n- Tests for error states \\(load failure, delete failure\\)\n- Tests for empty state\n\nTests fail as expected - page will be implemented in PR-7.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git pull:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
