@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { PostWithAuthor } from '@/types';
+import {
+  createPostSchema,
+  editPostSchema,
+  POST_TITLE_MAX_LENGTH,
+  POST_BODY_MAX_LENGTH,
+  formatYupErrors,
+} from '@/lib/validation';
+import * as yup from 'yup';
 
 interface User {
   id: number;
@@ -23,8 +31,10 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
   const [userId, setUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const isEditing = !!post;
 
@@ -59,21 +69,83 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
       }
     }
     setError(null);
+    setFieldErrors({});
+    setTouched({});
   }, [post, isOpen, users]);
+
+  // Validate a single field
+  async function validateField(field: string, value: string) {
+    const schema = isEditing ? editPostSchema : createPostSchema;
+    try {
+      await schema.validateAt(field, {
+        title,
+        body,
+        userId: userId ? parseInt(userId, 10) : undefined,
+        [field]: field === 'userId' ? (value ? parseInt(value, 10) : undefined) : value,
+      });
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    } catch (err) {
+      if (err instanceof yup.ValidationError) {
+        setFieldErrors((prev) => ({ ...prev, [field]: err.message }));
+      }
+    }
+  }
+
+  // Handle field blur
+  function handleBlur(field: string) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const value = field === 'title' ? title : field === 'body' ? body : userId;
+    validateField(field, value);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
+
+    const schema = isEditing ? editPostSchema : createPostSchema;
+    const data = isEditing
+      ? { title, body }
+      : { title, body, userId: userId ? parseInt(userId, 10) : undefined };
+
+    try {
+      await schema.validate(data, { abortEarly: false });
+    } catch (err) {
+      if (err instanceof yup.ValidationError) {
+        setFieldErrors(formatYupErrors(err));
+        setTouched({ title: true, body: true, userId: true });
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
       await onSave({
-        title,
-        body,
+        title: title.trim(),
+        body: body.trim(),
         userId: isEditing ? undefined : parseInt(userId, 10),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save post');
+      if (err instanceof Error) {
+        // Check if the error contains field-specific errors from the API
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed.errors) {
+            setFieldErrors(parsed.errors);
+            return;
+          }
+        } catch {
+          // Not a JSON error, use the message as-is
+        }
+        setError(err.message);
+      } else {
+        setError('Failed to save post');
+      }
     } finally {
       setSaving(false);
     }
@@ -99,35 +171,65 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="mb-4">
-            <label htmlFor="title" className="block text-sm font-medium text-[#9CA3AF] mb-2">
-              Title
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="title" className="block text-sm font-medium text-[#9CA3AF]">
+                Title
+              </label>
+              <span className={`text-xs ${title.length > POST_TITLE_MAX_LENGTH ? 'text-red-400' : 'text-[#9CA3AF]/60'}`}>
+                {title.length}/{POST_TITLE_MAX_LENGTH}
+              </span>
+            </div>
             <input
               type="text"
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF]/50 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all"
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (touched.title) validateField('title', e.target.value);
+              }}
+              onBlur={() => handleBlur('title')}
+              className={`w-full px-4 py-3 bg-white/5 border rounded-lg text-white placeholder-[#9CA3AF]/50 focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
+                touched.title && fieldErrors.title
+                  ? 'border-red-500/50 focus:ring-red-500'
+                  : 'border-white/10 focus:ring-[#2563EB]'
+              }`}
               placeholder="Enter post title..."
             />
+            {touched.title && fieldErrors.title && (
+              <p className="mt-1 text-sm text-red-400">{fieldErrors.title}</p>
+            )}
           </div>
 
           <div className="mb-4">
-            <label htmlFor="body" className="block text-sm font-medium text-[#9CA3AF] mb-2">
-              Body
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="body" className="block text-sm font-medium text-[#9CA3AF]">
+                Body
+              </label>
+              <span className={`text-xs ${body.length > POST_BODY_MAX_LENGTH ? 'text-red-400' : 'text-[#9CA3AF]/60'}`}>
+                {body.length}/{POST_BODY_MAX_LENGTH}
+              </span>
+            </div>
             <textarea
               id="body"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              required
+              onChange={(e) => {
+                setBody(e.target.value);
+                if (touched.body) validateField('body', e.target.value);
+              }}
+              onBlur={() => handleBlur('body')}
               rows={4}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#9CA3AF]/50 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all resize-none"
+              className={`w-full px-4 py-3 bg-white/5 border rounded-lg text-white placeholder-[#9CA3AF]/50 focus:outline-none focus:ring-2 focus:border-transparent transition-all resize-none ${
+                touched.body && fieldErrors.body
+                  ? 'border-red-500/50 focus:ring-red-500'
+                  : 'border-white/10 focus:ring-[#2563EB]'
+              }`}
               placeholder="Write your post content..."
             />
+            {touched.body && fieldErrors.body && (
+              <p className="mt-1 text-sm text-red-400">{fieldErrors.body}</p>
+            )}
           </div>
 
           {!isEditing && (
@@ -138,10 +240,17 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
               <select
                 id="userId"
                 value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                required
+                onChange={(e) => {
+                  setUserId(e.target.value);
+                  if (touched.userId) validateField('userId', e.target.value);
+                }}
+                onBlur={() => handleBlur('userId')}
                 disabled={loadingUsers}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all disabled:opacity-50 appearance-none cursor-pointer"
+                className={`w-full px-4 py-3 bg-white/5 border rounded-lg text-white focus:outline-none focus:ring-2 focus:border-transparent transition-all disabled:opacity-50 appearance-none cursor-pointer ${
+                  touched.userId && fieldErrors.userId
+                    ? 'border-red-500/50 focus:ring-red-500'
+                    : 'border-white/10 focus:ring-[#2563EB]'
+                }`}
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                   backgroundRepeat: 'no-repeat',
@@ -159,6 +268,9 @@ export function PostFormModal({ isOpen, post, onSave, onCancel }: PostFormModalP
                   ))
                 )}
               </select>
+              {touched.userId && fieldErrors.userId && (
+                <p className="mt-1 text-sm text-red-400">{fieldErrors.userId}</p>
+              )}
             </div>
           )}
 

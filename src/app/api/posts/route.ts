@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { validateCreatePost } from '@/lib/validation';
 
 export async function GET(request: Request) {
   try {
@@ -91,14 +92,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, body: postBody, userId } = body;
 
-    if (!title || !postBody || !userId) {
+    const validation = await validateCreatePost(body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Title, body, and userId are required' },
+        { error: 'Validation failed', errors: validation.errors },
         { status: 400 }
       );
     }
+
+    const { title, body: postBody, userId } = validation.data;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'User not found', errors: { userId: 'Selected author does not exist' } },
         { status: 404 }
       );
     }
