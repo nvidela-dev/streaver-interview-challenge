@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { validateEditPost } from '@/lib/validation';
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -55,14 +56,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { title, body: postBody } = body;
 
-    if (!title || !postBody) {
+    const validation = await validateEditPost(body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Title and body are required' },
+        { error: 'Validation failed', errors: validation.errors },
         { status: 400 }
       );
     }
+
+    const { title, body: postBody } = validation.data;
 
     const existingPost = await prisma.post.findUnique({
       where: { id },
