@@ -5,6 +5,7 @@ import { PostWithAuthor } from '@/types';
 import { PostCard } from '@/components/PostCard';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { PostFormModal } from '@/components/PostFormModal';
+import { IconButton, PlusIcon } from '@/components/IconButton';
 
 const POSTS_PER_PAGE = 10;
 
@@ -159,7 +160,7 @@ export default function PostsPage() {
     return (
       <div className="min-h-screen py-16 px-6 lg:px-10">
         <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
-          <p className="text-taupe-500 dark:text-taupe-400 text-center">Loading...</p>
+          <p className="text-[#9CA3AF] text-center">Loading...</p>
         </div>
       </div>
     );
@@ -169,7 +170,7 @@ export default function PostsPage() {
     return (
       <div className="min-h-screen py-16 px-6 lg:px-10">
         <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
-          <p className="text-red-600 dark:text-red-400 text-center">Error: {error}</p>
+          <p className="text-red-400 text-center">Error: {error}</p>
         </div>
       </div>
     );
@@ -179,23 +180,23 @@ export default function PostsPage() {
     <div className="min-h-screen py-16 px-6 lg:px-10">
       <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
         <div className="flex justify-between items-center mb-10">
-          <h1 className="text-3xl font-semibold text-taupe-950 dark:text-white">Posts</h1>
-          <button
+          <h1 className="text-3xl font-semibold text-white">Our Latest News</h1>
+          <IconButton
+            icon={<PlusIcon />}
+            label="New Post"
+            variant="primary"
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-full text-sm/7 font-medium bg-taupe-950 hover:bg-taupe-800 text-white dark:bg-taupe-300 dark:hover:bg-taupe-200 dark:text-taupe-950 transition-colors"
-          >
-            + New Post
-          </button>
+          />
         </div>
 
         {deleteError && (
-          <div className="bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-3 rounded-md mb-6 text-sm">
+          <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-md mb-6 text-sm">
             {deleteError}
           </div>
         )}
 
         {posts.length === 0 ? (
-          <p className="text-taupe-500 dark:text-taupe-400 text-center">No posts found.</p>
+          <p className="text-[#9CA3AF] text-center">No posts found.</p>
         ) : (
           <div className="space-y-4">
             {posts.map((post) => (
@@ -210,10 +211,10 @@ export default function PostsPage() {
             {/* Infinite scroll trigger */}
             <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
               {loadingMore && (
-                <p className="text-taupe-500 dark:text-taupe-400">Loading more posts...</p>
+                <p className="text-[#9CA3AF]">Loading more posts...</p>
               )}
               {!hasMore && posts.length > 0 && (
-                <p className="text-taupe-400 dark:text-taupe-500">No more posts</p>
+                <p className="text-[#9CA3AF]/60">No more posts</p>
               )}
             </div>
           </div>
