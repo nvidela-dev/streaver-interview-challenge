@@ -11,6 +11,11 @@ const mockPrisma = {
     count: jest.fn(),
     delete: jest.fn(),
     findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+  user: {
+    findUnique: jest.fn(),
   },
 };
 
@@ -190,5 +195,254 @@ describe('DELETE /api/posts/[id]', () => {
     expect(response.status).toBe(500);
     expect(data).toHaveProperty('error');
     consoleSpy.mockRestore();
+  });
+});
+
+describe('POST /api/posts validation', () => {
+  const mockUser = { id: 1, name: 'John Doe', username: 'johndoe' };
+  const mockCreatedPost = {
+    id: 1,
+    userId: 1,
+    title: 'Valid Title',
+    body: 'Valid body content here.',
+    user: { name: 'John Doe', username: 'johndoe' },
+  };
+
+  it('should create a post with valid data', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+    mockPrisma.post.create.mockResolvedValue(mockCreatedPost);
+
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Valid Title',
+        body: 'Valid body content here.',
+        userId: 1,
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(data.title).toBe('Valid Title');
+  });
+
+  it('should return 400 for empty title', async () => {
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '',
+        body: 'Valid body content here.',
+        userId: 1,
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Validation failed');
+    expect(data.errors).toHaveProperty('title');
+  });
+
+  it('should return 400 for title too short', async () => {
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Hi',
+        body: 'Valid body content here.',
+        userId: 1,
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.errors.title).toContain('at least');
+  });
+
+  it('should return 400 for body too short', async () => {
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Valid Title',
+        body: 'Short',
+        userId: 1,
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.errors.body).toContain('at least');
+  });
+
+  it('should return 400 for missing userId', async () => {
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Valid Title',
+        body: 'Valid body content here.',
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.errors).toHaveProperty('userId');
+  });
+
+  it('should return 404 for non-existent user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Valid Title',
+        body: 'Valid body content here.',
+        userId: 999,
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(data.error).toBe('User not found');
+  });
+
+  it('should return multiple validation errors', async () => {
+    const { POST } = await import('@/app/api/posts/route');
+    const request = new Request('http://localhost:3000/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '',
+        body: '',
+        userId: -1,
+      }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(Object.keys(data.errors).length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('PUT /api/posts/[id] validation', () => {
+  const mockExistingPost = {
+    id: 1,
+    userId: 1,
+    title: 'Original Title',
+    body: 'Original body content.',
+  };
+  const mockUpdatedPost = {
+    id: 1,
+    userId: 1,
+    title: 'Updated Title',
+    body: 'Updated body content here.',
+    user: { name: 'John Doe', username: 'johndoe' },
+  };
+
+  it('should update a post with valid data', async () => {
+    mockPrisma.post.findUnique.mockResolvedValue(mockExistingPost);
+    mockPrisma.post.update.mockResolvedValue(mockUpdatedPost);
+
+    const { PUT } = await import('@/app/api/posts/[id]/route');
+    const request = new Request('http://localhost:3000/api/posts/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Updated Title',
+        body: 'Updated body content here.',
+      }),
+    });
+    const response = await PUT(request, { params: Promise.resolve({ id: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.title).toBe('Updated Title');
+  });
+
+  it('should return 400 for empty title on update', async () => {
+    const { PUT } = await import('@/app/api/posts/[id]/route');
+    const request = new Request('http://localhost:3000/api/posts/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '',
+        body: 'Valid body content here.',
+      }),
+    });
+    const response = await PUT(request, { params: Promise.resolve({ id: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Validation failed');
+    expect(data.errors).toHaveProperty('title');
+  });
+
+  it('should return 400 for title too short on update', async () => {
+    const { PUT } = await import('@/app/api/posts/[id]/route');
+    const request = new Request('http://localhost:3000/api/posts/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Hi',
+        body: 'Valid body content here.',
+      }),
+    });
+    const response = await PUT(request, { params: Promise.resolve({ id: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.errors.title).toContain('at least');
+  });
+
+  it('should return 400 for body too short on update', async () => {
+    const { PUT } = await import('@/app/api/posts/[id]/route');
+    const request = new Request('http://localhost:3000/api/posts/1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Valid Title',
+        body: 'Short',
+      }),
+    });
+    const response = await PUT(request, { params: Promise.resolve({ id: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.errors.body).toContain('at least');
+  });
+
+  it('should return 404 for non-existent post on update', async () => {
+    mockPrisma.post.findUnique.mockResolvedValue(null);
+
+    const { PUT } = await import('@/app/api/posts/[id]/route');
+    const request = new Request('http://localhost:3000/api/posts/999', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Valid Title',
+        body: 'Valid body content here.',
+      }),
+    });
+    const response = await PUT(request, { params: Promise.resolve({ id: '999' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(data.error).toBe('Post not found');
   });
 });
