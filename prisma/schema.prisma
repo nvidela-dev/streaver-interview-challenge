@@ -17,21 +17,21 @@ model User {
   username String
   email    String
 
-  // Address fields (flattened)
-  street   String
-  suite    String
-  city     String
-  zipcode  String
-  lat      String
-  lng      String
+  // Address fields (flattened, optional)
+  street  String?
+  suite   String?
+  city    String?
+  zipcode String?
+  lat     String?
+  lng     String?
 
-  phone   String
-  website String
+  phone   String?
+  website String?
 
-  // Company fields (flattened)
-  companyName        String
-  companyCatchPhrase String
-  companyBs          String
+  // Company fields (flattened, optional)
+  companyName        String?
+  companyCatchPhrase String?
+  companyBs          String?
 
   posts Post[]
 }
