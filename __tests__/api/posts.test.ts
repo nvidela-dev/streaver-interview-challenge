@@ -8,6 +8,7 @@ jest.mock('@/generated/prisma/client', () => ({
 const mockPrisma = {
   post: {
     findMany: jest.fn(),
+    count: jest.fn(),
     delete: jest.fn(),
     findUnique: jest.fn(),
   },
@@ -45,35 +46,42 @@ const mockPostsWithUsers = [
 describe('GET /api/posts', () => {
   it('should return all posts with author info', async () => {
     mockPrisma.post.findMany.mockResolvedValue(mockPostsWithUsers);
+    mockPrisma.post.count.mockResolvedValue(3);
 
     const { GET } = await import('@/app/api/posts/route');
     const request = new Request('http://localhost:3000/api/posts');
     const response = await GET(request);
-    const data = await response.json();
+    const result = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toHaveLength(3);
-    expect(data[0]).toEqual({
+    expect(result.data).toHaveLength(3);
+    expect(result.data[0]).toEqual({
       id: 1,
       userId: 1,
       title: 'First Post',
       body: 'This is the first post body',
       author: { name: 'John Doe', username: 'johndoe' },
     });
+    expect(result.pagination).toMatchObject({
+      page: 1,
+      total: 3,
+      hasMore: false,
+    });
   });
 
   it('should filter posts by userId when query param provided', async () => {
     const filteredPosts = mockPostsWithUsers.filter((p) => p.userId === 1);
     mockPrisma.post.findMany.mockResolvedValue(filteredPosts);
+    mockPrisma.post.count.mockResolvedValue(2);
 
     const { GET } = await import('@/app/api/posts/route');
     const request = new Request('http://localhost:3000/api/posts?userId=1');
     const response = await GET(request);
-    const data = await response.json();
+    const result = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toHaveLength(2);
-    expect(data.every((post: { userId: number }) => post.userId === 1)).toBe(true);
+    expect(result.data).toHaveLength(2);
+    expect(result.data.every((post: { userId: number }) => post.userId === 1)).toBe(true);
     expect(mockPrisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: 1 },
@@ -85,35 +93,38 @@ describe('GET /api/posts', () => {
     const { GET } = await import('@/app/api/posts/route');
     const request = new Request('http://localhost:3000/api/posts?userId=invalid');
     const response = await GET(request);
-    const data = await response.json();
+    const result = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data).toHaveProperty('error');
+    expect(result).toHaveProperty('error');
   });
 
   it('should return empty array when no posts exist', async () => {
     mockPrisma.post.findMany.mockResolvedValue([]);
+    mockPrisma.post.count.mockResolvedValue(0);
 
     const { GET } = await import('@/app/api/posts/route');
     const request = new Request('http://localhost:3000/api/posts');
     const response = await GET(request);
-    const data = await response.json();
+    const result = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual([]);
+    expect(result.data).toEqual([]);
+    expect(result.pagination.total).toBe(0);
   });
 
   it('should return 500 on database error', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockPrisma.post.findMany.mockRejectedValue(new Error('Database error'));
+    mockPrisma.post.count.mockRejectedValue(new Error('Database error'));
 
     const { GET } = await import('@/app/api/posts/route');
     const request = new Request('http://localhost:3000/api/posts');
     const response = await GET(request);
-    const data = await response.json();
+    const result = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data).toHaveProperty('error');
+    expect(result).toHaveProperty('error');
     consoleSpy.mockRestore();
   });
 });
