@@ -62,8 +62,12 @@ export default function PostsPage() {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const wasEmptyRef = useRef(true);
+  const isFetchingRef = useRef(false);
 
   const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number, throttle = false) => {
+    if (isFetchingRef.current && append) return;
+    isFetchingRef.current = true;
+
     try {
       if (pageNum === 1) {
         setLoading(true);
@@ -91,7 +95,11 @@ export default function PostsPage() {
       const result: PaginatedResponse = await response.json();
 
       if (append) {
-        setPosts((prev) => [...prev, ...result.data]);
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newPosts = result.data.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...newPosts];
+        });
       } else {
         setPosts(result.data);
         wasEmptyRef.current = result.data.length === 0;
@@ -102,6 +110,7 @@ export default function PostsPage() {
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
