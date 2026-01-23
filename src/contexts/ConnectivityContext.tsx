@@ -1,19 +1,52 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 
 interface ConnectivityContextType {
   isOffline: boolean;
   simulateOffline: boolean;
+  backendOffline: boolean;
   setSimulateOffline: (value: boolean) => void;
-  checkConnection: () => Promise<boolean>;
+  reportApiFailure: () => void;
+  reportApiSuccess: () => void;
 }
 
 const ConnectivityContext = createContext<ConnectivityContextType | null>(null);
 
+const POLL_INTERVAL = 5000; // 5 seconds
+
 export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [simulateOffline, setSimulateOffline] = useState(false);
   const [browserOffline, setBrowserOffline] = useState(false);
+  const [backendOffline, setBackendOffline] = useState(false);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check backend health
+  const checkBackendHealth = useCallback(async () => {
+    if (simulateOffline) {
+      setBackendOffline(true);
+      return;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const response = await fetch('/api/users', {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        setBackendOffline(false);
+      } else {
+        setBackendOffline(true);
+      }
+    } catch {
+      setBackendOffline(true);
+    }
+  }, [simulateOffline]);
 
   // Only check navigator.onLine on the client side after mount
   useEffect(() => {
@@ -31,22 +64,42 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const checkConnection = useCallback(async (): Promise<boolean> => {
-    if (simulateOffline) {
-      return false;
-    }
-    return navigator.onLine;
-  }, [simulateOffline]);
+  // Poll backend health every 5 seconds
+  useEffect(() => {
+    // Initial check
+    checkBackendHealth();
 
-  const isOffline = simulateOffline || browserOffline;
+    // Set up polling
+    pollIntervalRef.current = setInterval(checkBackendHealth, POLL_INTERVAL);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [checkBackendHealth]);
+
+  // Called when an API request fails
+  const reportApiFailure = useCallback(() => {
+    setBackendOffline(true);
+  }, []);
+
+  // Called when an API request succeeds
+  const reportApiSuccess = useCallback(() => {
+    setBackendOffline(false);
+  }, []);
+
+  const isOffline = simulateOffline || browserOffline || backendOffline;
 
   return (
     <ConnectivityContext.Provider
       value={{
         isOffline,
         simulateOffline,
+        backendOffline,
         setSimulateOffline,
-        checkConnection,
+        reportApiFailure,
+        reportApiSuccess,
       }}
     >
       {children}

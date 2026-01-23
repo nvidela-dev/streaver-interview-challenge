@@ -3,11 +3,21 @@
 import { useConnectivity } from '@/contexts/ConnectivityContext';
 
 export function ConnectionStatusBar() {
-  const { isOffline, simulateOffline } = useConnectivity();
+  const { isOffline, simulateOffline, backendOffline } = useConnectivity();
 
   if (!isOffline) {
     return null;
   }
+
+  const getMessage = () => {
+    if (simulateOffline) {
+      return 'Offline mode simulated — API requests will fail';
+    }
+    if (backendOffline) {
+      return 'Unable to connect to server — Please check if the backend is running';
+    }
+    return 'You are offline — Some features may be unavailable';
+  };
 
   return (
     <div className="bg-red-500/90 text-white px-4 py-2 text-center text-sm font-medium animate-status-bar-in">
@@ -26,11 +36,7 @@ export function ConnectionStatusBar() {
             d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
           />
         </svg>
-        <span>
-          {simulateOffline
-            ? 'Offline mode simulated — API requests will fail'
-            : 'You are offline — Some features may be unavailable'}
-        </span>
+        <span>{getMessage()}</span>
       </div>
     </div>
   );

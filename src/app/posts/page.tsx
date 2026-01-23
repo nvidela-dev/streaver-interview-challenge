@@ -42,7 +42,7 @@ interface PaginatedResponse {
 }
 
 export default function PostsPage() {
-  const { simulateOffline, setSimulateOffline, isOffline } = useConnectivity();
+  const { simulateOffline, setSimulateOffline, isOffline, reportApiFailure, reportApiSuccess } = useConnectivity();
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -106,6 +106,7 @@ export default function PostsPage() {
       }
 
       const result: PaginatedResponse = await response.json();
+      reportApiSuccess();
 
       if (append) {
         setPosts((prev) => {
@@ -119,6 +120,7 @@ export default function PostsPage() {
       }
       setHasMore(result.pagination.hasMore);
     } catch (err) {
+      reportApiFailure();
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         setError('Unable to connect to the server. Please check your internet connection and try again.');
       } else {
@@ -138,13 +140,17 @@ export default function PostsPage() {
         if (response.ok) {
           const data = await response.json();
           setUsers(data);
+          reportApiSuccess();
+        } else {
+          reportApiFailure();
         }
       } catch (err) {
         console.error('Failed to fetch users:', err);
+        reportApiFailure();
       }
     }
     fetchUsers();
-  }, []);
+  }, [reportApiSuccess, reportApiFailure]);
 
   useEffect(() => {
     setPage(1);
@@ -222,14 +228,17 @@ export default function PostsPage() {
         method: 'DELETE',
       });
       if (!response.ok) {
+        reportApiFailure();
         if (response.status >= 500) {
           throw new Error('Server error. Unable to delete the post. Please try again later.');
         }
         throw new Error('Failed to delete post. Please try again.');
       }
+      reportApiSuccess();
       setPosts(posts.filter((post) => post.id !== id));
       setToast({ message: 'Post deleted successfully', type: 'success' });
     } catch (err) {
+      reportApiFailure();
       const errorMessage = err instanceof TypeError && err.message === 'Failed to fetch'
         ? 'Unable to connect to the server. Please check your connection.'
         : err instanceof Error ? err.message : 'Failed to delete post';
@@ -272,6 +281,7 @@ export default function PostsPage() {
         body: JSON.stringify(data),
       });
       if (!response.ok) {
+        reportApiFailure();
         const errorData = await response.json();
         if (response.status >= 500) {
           throw new Error('Server error. Unable to create the post. Please try again later.');
@@ -279,6 +289,7 @@ export default function PostsPage() {
         throw new Error(errorData.error || 'Failed to create post. Please try again.');
       }
       const newPost = await response.json();
+      reportApiSuccess();
 
       // Replace optimistic post with real one
       setPosts((prev) => prev.map((p) => (p.id === tempId ? newPost : p)));
@@ -290,6 +301,7 @@ export default function PostsPage() {
 
       setToast({ message: 'Post created successfully!', type: 'success' });
     } catch (err) {
+      reportApiFailure();
       // Rollback optimistic update
       setPosts((prev) => prev.filter((p) => p.id !== tempId));
       const errorMessage = err instanceof TypeError && err.message === 'Failed to fetch'
@@ -323,6 +335,7 @@ export default function PostsPage() {
         body: JSON.stringify(data),
       });
       if (!response.ok) {
+        reportApiFailure();
         const errorData = await response.json();
         if (response.status >= 500) {
           throw new Error('Server error. Unable to update the post. Please try again later.');
@@ -330,9 +343,11 @@ export default function PostsPage() {
         throw new Error(errorData.error || 'Failed to update post. Please try again.');
       }
       const updatedPost = await response.json();
+      reportApiSuccess();
       setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
       setToast({ message: 'Post updated successfully!', type: 'success' });
     } catch (err) {
+      reportApiFailure();
       // Rollback optimistic update
       setPosts((prev) => prev.map((p) => (p.id === originalPost.id ? originalPost : p)));
       const errorMessage = err instanceof TypeError && err.message === 'Failed to fetch'
@@ -361,13 +376,16 @@ export default function PostsPage() {
       }
       const response = await fetch('/api/dev/clear', { method: 'DELETE' });
       if (!response.ok) {
+        reportApiFailure();
         throw new Error('Failed to clear posts');
       }
+      reportApiSuccess();
       setPosts([]);
       setPage(1);
       setHasMore(false);
       wasEmptyRef.current = true;
     } catch (err) {
+      reportApiFailure();
       console.error('Error clearing posts:', err);
       setToast({ message: 'Failed to clear posts. Please try again.', type: 'error' });
     }
@@ -381,13 +399,16 @@ export default function PostsPage() {
       }
       const response = await fetch('/api/dev/seed', { method: 'POST' });
       if (!response.ok) {
+        reportApiFailure();
         throw new Error('Failed to seed data');
       }
+      reportApiSuccess();
       // Refresh posts
       setPage(1);
       setSelectedUser(null);
       fetchPosts(1, false, undefined, throttleEnabled, simulateOffline);
     } catch (err) {
+      reportApiFailure();
       console.error('Error seeding data:', err);
       setToast({ message: 'Failed to seed data. Please try again.', type: 'error' });
     }
