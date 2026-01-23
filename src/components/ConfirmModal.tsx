@@ -12,12 +12,12 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-modal-backdrop">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+        className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl animate-modal-content"
       >
         <h2 id="modal-title" className="text-xl font-semibold text-white mb-2">
           {title}
