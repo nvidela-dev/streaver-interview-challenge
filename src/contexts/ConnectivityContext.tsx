@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 
 interface ConnectivityContextType {
   isOffline: boolean;
@@ -13,6 +13,23 @@ const ConnectivityContext = createContext<ConnectivityContextType | null>(null);
 
 export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [simulateOffline, setSimulateOffline] = useState(false);
+  const [browserOffline, setBrowserOffline] = useState(false);
+
+  // Only check navigator.onLine on the client side after mount
+  useEffect(() => {
+    setBrowserOffline(!navigator.onLine);
+
+    const handleOnline = () => setBrowserOffline(false);
+    const handleOffline = () => setBrowserOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const checkConnection = useCallback(async (): Promise<boolean> => {
     if (simulateOffline) {
@@ -21,7 +38,7 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
     return navigator.onLine;
   }, [simulateOffline]);
 
-  const isOffline = simulateOffline || (typeof navigator !== 'undefined' && !navigator.onLine);
+  const isOffline = simulateOffline || browserOffline;
 
   return (
     <ConnectivityContext.Provider
