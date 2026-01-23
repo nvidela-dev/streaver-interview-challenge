@@ -13,6 +13,7 @@ import { Toast } from '@/components/Toast';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { ScrollToTop } from '@/components/ScrollToTop';
 import { Confetti } from '@/components/Confetti';
+import { useConnectivity } from '@/contexts/ConnectivityContext';
 
 interface User {
   id: number;
@@ -41,6 +42,7 @@ interface PaginatedResponse {
 }
 
 export default function PostsPage() {
+  const { simulateOffline, setSimulateOffline, isOffline } = useConnectivity();
   const [posts, setPosts] = useState<PostWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -64,7 +66,7 @@ export default function PostsPage() {
   const wasEmptyRef = useRef(true);
   const isFetchingRef = useRef(false);
 
-  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number, throttle = false) => {
+  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number, throttle = false, offline = false) => {
     if (isFetchingRef.current && append) return;
     isFetchingRef.current = true;
 
@@ -75,6 +77,11 @@ export default function PostsPage() {
         setLoadingMore(true);
       }
       setError(null);
+
+      // Check for offline mode
+      if (offline) {
+        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+      }
 
       const params = new URLSearchParams({
         page: pageNum.toString(),
@@ -89,7 +96,13 @@ export default function PostsPage() {
 
       const response = await fetch(`/api/posts?${params}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch posts');
+        if (response.status >= 500) {
+          throw new Error('The server is experiencing issues. Please try again later.');
+        } else if (response.status === 404) {
+          throw new Error('The requested resource could not be found.');
+        } else {
+          throw new Error('Failed to load posts. Please refresh the page to try again.');
+        }
       }
 
       const result: PaginatedResponse = await response.json();
@@ -106,7 +119,11 @@ export default function PostsPage() {
       }
       setHasMore(result.pagination.hasMore);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -131,8 +148,8 @@ export default function PostsPage() {
 
   useEffect(() => {
     setPage(1);
-    fetchPosts(1, false, selectedUser?.id, throttleEnabled);
-  }, [fetchPosts, selectedUser, throttleEnabled]);
+    fetchPosts(1, false, selectedUser?.id, throttleEnabled, simulateOffline);
+  }, [fetchPosts, selectedUser, throttleEnabled, simulateOffline]);
 
   useEffect(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -159,9 +176,9 @@ export default function PostsPage() {
 
   useEffect(() => {
     if (page > 1) {
-      fetchPosts(page, true, selectedUser?.id, throttleEnabled);
+      fetchPosts(page, true, selectedUser?.id, throttleEnabled, simulateOffline);
     }
-  }, [page, fetchPosts, selectedUser, throttleEnabled]);
+  }, [page, fetchPosts, selectedUser, throttleEnabled, simulateOffline]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -193,6 +210,11 @@ export default function PostsPage() {
       setDeletingPostId(id);
       setPostToDelete(null);
 
+      // Check for offline mode
+      if (simulateOffline) {
+        throw new Error('Unable to delete post while offline. Please check your connection and try again.');
+      }
+
       // Wait for animation
       await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -200,19 +222,31 @@ export default function PostsPage() {
         method: 'DELETE',
       });
       if (!response.ok) {
-        throw new Error('Failed to delete post');
+        if (response.status >= 500) {
+          throw new Error('Server error. Unable to delete the post. Please try again later.');
+        }
+        throw new Error('Failed to delete post. Please try again.');
       }
       setPosts(posts.filter((post) => post.id !== id));
       setToast({ message: 'Post deleted successfully', type: 'success' });
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete post');
-      setToast({ message: 'Failed to delete post', type: 'error' });
+      const errorMessage = err instanceof TypeError && err.message === 'Failed to fetch'
+        ? 'Unable to connect to the server. Please check your connection.'
+        : err instanceof Error ? err.message : 'Failed to delete post';
+      setDeleteError(errorMessage);
+      setToast({ message: errorMessage, type: 'error' });
     } finally {
       setDeletingPostId(null);
     }
   }
 
   async function handleCreate(data: { title: string; body: string; userId?: number }) {
+    // Check for offline mode first
+    if (simulateOffline) {
+      setToast({ message: 'Unable to create post while offline. Please check your connection and try again.', type: 'error' });
+      throw new Error('Offline');
+    }
+
     // Optimistic update - create a temporary post
     const tempId = -Date.now();
     const selectedUserData = users.find((u) => u.id === data.userId);
@@ -239,7 +273,10 @@ export default function PostsPage() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create post');
+        if (response.status >= 500) {
+          throw new Error('Server error. Unable to create the post. Please try again later.');
+        }
+        throw new Error(errorData.error || 'Failed to create post. Please try again.');
       }
       const newPost = await response.json();
 
@@ -255,13 +292,22 @@ export default function PostsPage() {
     } catch (err) {
       // Rollback optimistic update
       setPosts((prev) => prev.filter((p) => p.id !== tempId));
-      setToast({ message: err instanceof Error ? err.message : 'Failed to create post', type: 'error' });
+      const errorMessage = err instanceof TypeError && err.message === 'Failed to fetch'
+        ? 'Unable to connect to the server. Please check your connection.'
+        : err instanceof Error ? err.message : 'Failed to create post';
+      setToast({ message: errorMessage, type: 'error' });
       throw err;
     }
   }
 
   async function handleEdit(data: { title: string; body: string }) {
     if (!postToEdit) return;
+
+    // Check for offline mode first
+    if (simulateOffline) {
+      setToast({ message: 'Unable to update post while offline. Please check your connection and try again.', type: 'error' });
+      throw new Error('Offline');
+    }
 
     const originalPost = postToEdit;
 
@@ -278,7 +324,10 @@ export default function PostsPage() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update post');
+        if (response.status >= 500) {
+          throw new Error('Server error. Unable to update the post. Please try again later.');
+        }
+        throw new Error(errorData.error || 'Failed to update post. Please try again.');
       }
       const updatedPost = await response.json();
       setPosts((prev) => prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
@@ -286,7 +335,10 @@ export default function PostsPage() {
     } catch (err) {
       // Rollback optimistic update
       setPosts((prev) => prev.map((p) => (p.id === originalPost.id ? originalPost : p)));
-      setToast({ message: err instanceof Error ? err.message : 'Failed to update post', type: 'error' });
+      const errorMessage = err instanceof TypeError && err.message === 'Failed to fetch'
+        ? 'Unable to connect to the server. Please check your connection.'
+        : err instanceof Error ? err.message : 'Failed to update post';
+      setToast({ message: errorMessage, type: 'error' });
       throw err;
     }
   }
@@ -303,6 +355,10 @@ export default function PostsPage() {
 
   async function handleClearPosts() {
     try {
+      if (simulateOffline) {
+        setToast({ message: 'Unable to clear posts while offline.', type: 'error' });
+        return;
+      }
       const response = await fetch('/api/dev/clear', { method: 'DELETE' });
       if (!response.ok) {
         throw new Error('Failed to clear posts');
@@ -313,11 +369,16 @@ export default function PostsPage() {
       wasEmptyRef.current = true;
     } catch (err) {
       console.error('Error clearing posts:', err);
+      setToast({ message: 'Failed to clear posts. Please try again.', type: 'error' });
     }
   }
 
   async function handleSeedData() {
     try {
+      if (simulateOffline) {
+        setToast({ message: 'Unable to seed data while offline.', type: 'error' });
+        return;
+      }
       const response = await fetch('/api/dev/seed', { method: 'POST' });
       if (!response.ok) {
         throw new Error('Failed to seed data');
@@ -325,9 +386,10 @@ export default function PostsPage() {
       // Refresh posts
       setPage(1);
       setSelectedUser(null);
-      fetchPosts(1, false, undefined, throttleEnabled);
+      fetchPosts(1, false, undefined, throttleEnabled, simulateOffline);
     } catch (err) {
       console.error('Error seeding data:', err);
+      setToast({ message: 'Failed to seed data. Please try again.', type: 'error' });
     }
   }
 
@@ -355,7 +417,41 @@ export default function PostsPage() {
   } else if (error) {
     content = (
       <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
-        <p className="text-red-400 text-center">Error: {error}</p>
+        <div className="flex items-center justify-center py-20">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-10 max-w-md text-center animate-modal-content">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/10 flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {isOffline ? 'Connection Lost' : 'Something went wrong'}
+            </h3>
+            <p className="text-[#9CA3AF] mb-6">{error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                fetchPosts(1, false, selectedUser?.id, throttleEnabled, simulateOffline);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-colors btn-press"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Try Again
+            </button>
+          </div>
+        </div>
       </div>
     );
   } else {
@@ -477,6 +573,8 @@ export default function PostsPage() {
         onSeedData={handleSeedData}
         throttleEnabled={throttleEnabled}
         onToggleThrottle={setThrottleEnabled}
+        offlineEnabled={simulateOffline}
+        onToggleOffline={setSimulateOffline}
       />
       <ScrollToTop />
       {toast && (

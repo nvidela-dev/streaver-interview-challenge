@@ -7,6 +7,8 @@ interface DevPanelProps {
   onSeedData: () => Promise<void>;
   throttleEnabled: boolean;
   onToggleThrottle: (enabled: boolean) => void;
+  offlineEnabled: boolean;
+  onToggleOffline: (enabled: boolean) => void;
 }
 
 export function DevPanel({
@@ -14,6 +16,8 @@ export function DevPanel({
   onSeedData,
   throttleEnabled,
   onToggleThrottle,
+  offlineEnabled,
+  onToggleOffline,
 }: DevPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -238,6 +242,49 @@ export function DevPanel({
                   />
                 </svg>
                 Throttling enabled (2s delay)
+              </div>
+            )}
+          </div>
+
+          {/* Simulate Offline */}
+          <div className="bg-white/5 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-white">Simulate Offline</h3>
+              <button
+                onClick={() => onToggleOffline(!offlineEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  offlineEnabled ? 'bg-red-500' : 'bg-white/20'
+                }`}
+                role="switch"
+                aria-checked={offlineEnabled}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    offlineEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            <p className="text-xs text-[#9CA3AF]">
+              Simulate backend being offline to test error handling and connection states.
+            </p>
+            {offlineEnabled && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-red-400">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="size-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                  />
+                </svg>
+                Offline mode active
               </div>
             )}
           </div>
