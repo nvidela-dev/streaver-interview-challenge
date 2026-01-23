@@ -66,7 +66,7 @@ export default function PostsPage() {
   const wasEmptyRef = useRef(true);
   const isFetchingRef = useRef(false);
 
-  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number, throttle = false, offline = false) => {
+  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number, throttle = false) => {
     if (isFetchingRef.current && append) return;
     isFetchingRef.current = true;
 
@@ -77,11 +77,6 @@ export default function PostsPage() {
         setLoadingMore(true);
       }
       setError(null);
-
-      // Check for offline mode
-      if (offline) {
-        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
-      }
 
       const params = new URLSearchParams({
         page: pageNum.toString(),
@@ -154,8 +149,8 @@ export default function PostsPage() {
 
   useEffect(() => {
     setPage(1);
-    fetchPosts(1, false, selectedUser?.id, throttleEnabled, simulateOffline);
-  }, [fetchPosts, selectedUser, throttleEnabled, simulateOffline]);
+    fetchPosts(1, false, selectedUser?.id, throttleEnabled);
+  }, [fetchPosts, selectedUser, throttleEnabled]);
 
   useEffect(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -182,9 +177,9 @@ export default function PostsPage() {
 
   useEffect(() => {
     if (page > 1) {
-      fetchPosts(page, true, selectedUser?.id, throttleEnabled, simulateOffline);
+      fetchPosts(page, true, selectedUser?.id, throttleEnabled);
     }
-  }, [page, fetchPosts, selectedUser, throttleEnabled, simulateOffline]);
+  }, [page, fetchPosts, selectedUser, throttleEnabled]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -406,7 +401,7 @@ export default function PostsPage() {
       // Refresh posts
       setPage(1);
       setSelectedUser(null);
-      fetchPosts(1, false, undefined, throttleEnabled, simulateOffline);
+      fetchPosts(1, false, undefined, throttleEnabled);
     } catch (err) {
       reportApiFailure();
       console.error('Error seeding data:', err);
@@ -462,7 +457,7 @@ export default function PostsPage() {
             <button
               onClick={() => {
                 setError(null);
-                fetchPosts(1, false, selectedUser?.id, throttleEnabled, simulateOffline);
+                fetchPosts(1, false, selectedUser?.id, throttleEnabled);
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 transition-colors btn-press"
             >

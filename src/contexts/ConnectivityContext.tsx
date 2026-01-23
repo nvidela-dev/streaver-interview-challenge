@@ -21,13 +21,8 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [backendOffline, setBackendOffline] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check backend health
+  // Check backend health (continues polling even when simulating offline)
   const checkBackendHealth = useCallback(async () => {
-    if (simulateOffline) {
-      setBackendOffline(true);
-      return;
-    }
-
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -46,7 +41,7 @@ export function ConnectivityProvider({ children }: { children: ReactNode }) {
     } catch {
       setBackendOffline(true);
     }
-  }, [simulateOffline]);
+  }, []);
 
   // Only check navigator.onLine on the client side after mount
   useEffect(() => {
