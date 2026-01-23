@@ -252,13 +252,53 @@ describe('Posts Page', () => {
   });
 
   describe('Empty State', () => {
-    it('should display message when no posts exist', async () => {
+    it('should display empty state card when no posts exist', async () => {
       mockFetchSuccess([]);
       render(<PostsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/no posts/i)).toBeInTheDocument();
+        expect(screen.getByText('No posts yet')).toBeInTheDocument();
       });
+
+      expect(screen.getByText(/It's looking a bit empty here/)).toBeInTheDocument();
+    });
+
+    it('should display create first post button in empty state', async () => {
+      mockFetchSuccess([]);
+      render(<PostsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create first post/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should open create modal when clicking create first post button', async () => {
+      mockFetchSuccess([]);
+      const user = userEvent.setup();
+      render(<PostsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create first post/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /create first post/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Create New Post')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('End of List', () => {
+    it('should display caught up message when no more posts', async () => {
+      mockFetchSuccess();
+      render(<PostsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('First Post Title')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/You're all caught up!/)).toBeInTheDocument();
     });
   });
 });
