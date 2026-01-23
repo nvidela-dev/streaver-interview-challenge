@@ -8,6 +8,12 @@ export async function GET(request: Request) {
     const userIdParam = searchParams.get('userId');
     const pageParam = searchParams.get('page');
     const limitParam = searchParams.get('limit');
+    const throttle = searchParams.get('throttle');
+
+    // Add artificial delay for testing infinite scroll
+    if (throttle === 'true') {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
 
     // Pagination defaults
     const page = pageParam ? parseInt(pageParam, 10) : 1;
