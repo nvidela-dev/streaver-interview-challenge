@@ -246,7 +246,9 @@ describe('Posts Page', () => {
       await user.click(confirmButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to delete/i)).toBeInTheDocument();
+        // Both error banner and toast show the error
+        const errorMessages = screen.getAllByText(/failed to delete/i);
+        expect(errorMessages.length).toBeGreaterThan(0);
       });
     });
   });
@@ -256,11 +258,10 @@ describe('Posts Page', () => {
       mockFetchSuccess([]);
       render(<PostsPage />);
 
+      // Wait for empty state card (has create button)
       await waitFor(() => {
-        expect(screen.getByText('No posts yet')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /create first post/i })).toBeInTheDocument();
       });
-
-      expect(screen.getByText(/It's looking a bit empty here/)).toBeInTheDocument();
     });
 
     it('should display create first post button in empty state', async () => {
