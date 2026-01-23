@@ -148,3 +148,127 @@ body {
 .animate-slide-up {
   animation: slide-up-fade 0.4s ease-out forwards;
 }
+
+/* Staggered animation delay utilities */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+.stagger-9 { animation-delay: 0.45s; }
+.stagger-10 { animation-delay: 0.5s; }
+
+/* Post card hover effect */
+.post-card {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(37, 99, 235, 0.15);
+}
+
+/* Delete animation */
+@keyframes slide-out-right {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(30px) scale(0.95);
+  }
+}
+
+.animate-delete {
+  animation: slide-out-right 0.3s ease-out forwards;
+}
+
+/* Skeleton pulse */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Button press effect */
+.btn-press {
+  transition: transform 0.1s ease-out;
+}
+
+.btn-press:active {
+  transform: scale(0.95);
+}
+
+/* Toast animations */
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.3s ease-out forwards;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.3s ease-out forwards;
+}
+
+/* Scroll to top button */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out forwards;
+}
+
+/* Confetti animation */
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100vh) rotate(720deg);
+  }
+}
+
+.animate-confetti {
+  animation: confetti-fall 3s ease-out forwards;
+}

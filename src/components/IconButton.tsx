@@ -26,7 +26,7 @@ export function IconButton({
 
   return (
     <button
-      className={`group flex items-center gap-0 overflow-hidden rounded-full px-2.5 py-1.5 text-sm font-medium transition-all duration-300 ease-out hover:gap-2 hover:px-3 ${variantStyles[variant]} ${className}`}
+      className={`group flex items-center gap-0 overflow-hidden rounded-full px-2.5 py-1.5 text-sm font-medium transition-all duration-300 ease-out hover:gap-2 hover:px-3 btn-press ${variantStyles[variant]} ${className}`}
       {...props}
     >
       <span className="shrink-0">{icon}</span>

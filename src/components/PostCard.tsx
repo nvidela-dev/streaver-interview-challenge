@@ -8,11 +8,13 @@ interface PostCardProps {
   post: PostWithAuthor;
   onEdit: (post: PostWithAuthor) => void;
   onDelete: (id: number) => void;
+  index?: number;
+  isDeleting?: boolean;
 }
 
 const MAX_LINES = 7;
 
-export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
+export function PostCard({ post, onEdit, onDelete, index = 0, isDeleting = false }: PostCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [needsTruncation, setNeedsTruncation] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -25,8 +27,15 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
     }
   }, [post.body]);
 
+  const staggerClass = index < 10 ? `stagger-${index + 1}` : '';
+
   return (
-    <article className="rounded-md bg-white/5 p-6 text-sm/7">
+    <article
+      className={`rounded-md bg-white/5 p-6 text-sm/7 post-card animate-slide-up opacity-0 ${staggerClass} ${
+        isDeleting ? 'animate-delete' : ''
+      }`}
+      style={{ animationFillMode: 'forwards' }}
+    >
       <h2 className="text-lg font-semibold text-white mb-2 uppercase">
         {post.title}
       </h2>
