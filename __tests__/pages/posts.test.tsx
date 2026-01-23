@@ -5,6 +5,12 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PostsPage from '@/app/posts/page';
 import { PostWithAuthor } from '@/types';
+import { ConnectivityProvider } from '@/contexts/ConnectivityContext';
+
+// Helper to render with providers
+function renderWithProviders(ui: React.ReactElement) {
+  return render(<ConnectivityProvider>{ui}</ConnectivityProvider>);
+}
 
 // Mock data
 const mockPosts: PostWithAuthor[] = [
@@ -53,9 +59,21 @@ function createPaginatedResponse(posts: PostWithAuthor[]) {
   };
 }
 
+// Mock users data for filter and connectivity health check
+const mockUsers = [
+  { id: 1, name: 'John Doe', username: 'johndoe' },
+  { id: 2, name: 'Jane Smith', username: 'janesmith' },
+];
+
 // Helper to set up successful fetch responses
 function mockFetchSuccess(posts: PostWithAuthor[] = mockPosts) {
   mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+    if (url === '/api/users') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockUsers),
+      });
+    }
     if (url.startsWith('/api/posts?') && (!options || options.method !== 'DELETE')) {
       return Promise.resolve({
         ok: true,
@@ -73,7 +91,14 @@ function mockFetchSuccess(posts: PostWithAuthor[] = mockPosts) {
 }
 
 function mockFetchError() {
-  mockFetch.mockImplementation(() => {
+  mockFetch.mockImplementation((url: string) => {
+    // Still allow users endpoint for connectivity check
+    if (url === '/api/users') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockUsers),
+      });
+    }
     return Promise.resolve({
       ok: false,
       status: 500,
@@ -84,6 +109,12 @@ function mockFetchError() {
 
 function mockDeleteError() {
   mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+    if (url === '/api/users') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockUsers),
+      });
+    }
     if (url.startsWith('/api/posts?')) {
       return Promise.resolve({
         ok: true,
@@ -105,14 +136,14 @@ describe('Posts Page', () => {
   describe('Posts Listing', () => {
     it('should render loading state initially', () => {
       mockFetchSuccess();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
       // Loading spinner is shown (no posts visible yet)
       expect(screen.queryByText('First Post Title')).not.toBeInTheDocument();
     });
 
     it('should render all posts with author info', async () => {
       mockFetchSuccess();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -129,7 +160,7 @@ describe('Posts Page', () => {
 
     it('should render posts in card layout', async () => {
       mockFetchSuccess();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -143,7 +174,7 @@ describe('Posts Page', () => {
 
     it('should display post body content', async () => {
       mockFetchSuccess();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/This is the body of the first post/)).toBeInTheDocument();
@@ -154,7 +185,7 @@ describe('Posts Page', () => {
   describe('Delete Functionality', () => {
     it('should show delete button on each post', async () => {
       mockFetchSuccess();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -167,7 +198,7 @@ describe('Posts Page', () => {
     it('should show confirmation modal when delete button is clicked', async () => {
       mockFetchSuccess();
       const user = userEvent.setup();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -183,7 +214,7 @@ describe('Posts Page', () => {
     it('should close modal when cancel is clicked', async () => {
       mockFetchSuccess();
       const user = userEvent.setup();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -201,7 +232,7 @@ describe('Posts Page', () => {
     it('should delete post when confirm is clicked', async () => {
       mockFetchSuccess();
       const user = userEvent.setup();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -222,7 +253,7 @@ describe('Posts Page', () => {
   describe('Error States', () => {
     it('should display error message when posts fail to load', async () => {
       mockFetchError();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText(/error/i)).toBeInTheDocument();
@@ -233,7 +264,7 @@ describe('Posts Page', () => {
       mockDeleteError();
       const user = userEvent.setup();
 
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();
@@ -247,7 +278,7 @@ describe('Posts Page', () => {
 
       await waitFor(() => {
         // Both error banner and toast show the error
-        const errorMessages = screen.getAllByText(/failed to delete/i);
+        const errorMessages = screen.getAllByText(/unable to delete|server error/i);
         expect(errorMessages.length).toBeGreaterThan(0);
       });
     });
@@ -256,7 +287,7 @@ describe('Posts Page', () => {
   describe('Empty State', () => {
     it('should display empty state card when no posts exist', async () => {
       mockFetchSuccess([]);
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       // Wait for empty state card (has create button)
       await waitFor(() => {
@@ -266,7 +297,7 @@ describe('Posts Page', () => {
 
     it('should display create first post button in empty state', async () => {
       mockFetchSuccess([]);
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create first post/i })).toBeInTheDocument();
@@ -276,7 +307,7 @@ describe('Posts Page', () => {
     it('should open create modal when clicking create first post button', async () => {
       mockFetchSuccess([]);
       const user = userEvent.setup();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create first post/i })).toBeInTheDocument();
@@ -293,7 +324,7 @@ describe('Posts Page', () => {
   describe('End of List', () => {
     it('should display caught up message when no more posts', async () => {
       mockFetchSuccess();
-      render(<PostsPage />);
+      renderWithProviders(<PostsPage />);
 
       await waitFor(() => {
         expect(screen.getByText('First Post Title')).toBeInTheDocument();

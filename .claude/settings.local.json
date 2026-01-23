@@ -20,7 +20,8 @@
       "Bash(git pull:*)",
       "Bash(git commit:*)",
       "Bash(git cherry-pick:*)",
-      "Bash(gh pr close:*)"
+      "Bash(gh pr close:*)",
+      "Bash(gh pr view:*)"
     ]
   }
 }
