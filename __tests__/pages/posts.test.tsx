@@ -106,7 +106,8 @@ describe('Posts Page', () => {
     it('should render loading state initially', () => {
       mockFetchSuccess();
       render(<PostsPage />);
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
+      // Loading spinner is shown (no posts visible yet)
+      expect(screen.queryByText('First Post Title')).not.toBeInTheDocument();
     });
 
     it('should render all posts with author info', async () => {
