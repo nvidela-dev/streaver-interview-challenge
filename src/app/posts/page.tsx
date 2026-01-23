@@ -7,6 +7,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { PostFormModal } from '@/components/PostFormModal';
 import { IconButton, PlusIcon } from '@/components/IconButton';
 import { FilterButton } from '@/components/FilterButton';
+import { DevPanel } from '@/components/DevPanel';
 
 interface User {
   id: number;
@@ -40,11 +41,12 @@ export default function PostsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [throttleEnabled, setThrottleEnabled] = useState(false);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number) => {
+  const fetchPosts = useCallback(async (pageNum: number, append = false, userId?: number, throttle = false) => {
     try {
       if (pageNum === 1) {
         setLoading(true);
@@ -59,6 +61,9 @@ export default function PostsPage() {
       });
       if (userId) {
         params.set('userId', userId.toString());
+      }
+      if (throttle) {
+        params.set('throttle', 'true');
       }
 
       const response = await fetch(`/api/posts?${params}`);
@@ -99,8 +104,8 @@ export default function PostsPage() {
 
   useEffect(() => {
     setPage(1);
-    fetchPosts(1, false, selectedUser?.id);
-  }, [fetchPosts, selectedUser]);
+    fetchPosts(1, false, selectedUser?.id, throttleEnabled);
+  }, [fetchPosts, selectedUser, throttleEnabled]);
 
   useEffect(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -127,9 +132,9 @@ export default function PostsPage() {
 
   useEffect(() => {
     if (page > 1) {
-      fetchPosts(page, true, selectedUser?.id);
+      fetchPosts(page, true, selectedUser?.id, throttleEnabled);
     }
-  }, [page, fetchPosts, selectedUser]);
+  }, [page, fetchPosts, selectedUser, throttleEnabled]);
 
   async function handleDelete(id: number) {
     try {
@@ -189,28 +194,51 @@ export default function PostsPage() {
     setDeleteError(null);
   }
 
+  async function handleClearPosts() {
+    try {
+      const response = await fetch('/api/dev/clear', { method: 'DELETE' });
+      if (!response.ok) {
+        throw new Error('Failed to clear posts');
+      }
+      setPosts([]);
+      setPage(1);
+      setHasMore(false);
+    } catch (err) {
+      console.error('Error clearing posts:', err);
+    }
+  }
+
+  async function handleSeedData() {
+    try {
+      const response = await fetch('/api/dev/seed', { method: 'POST' });
+      if (!response.ok) {
+        throw new Error('Failed to seed data');
+      }
+      // Refresh posts
+      setPage(1);
+      setSelectedUser(null);
+      fetchPosts(1, false, undefined, throttleEnabled);
+    } catch (err) {
+      console.error('Error seeding data:', err);
+    }
+  }
+
+  // Render main content based on state
+  let content;
   if (loading) {
-    return (
-      <div className="min-h-screen py-16 px-6 lg:px-10">
-        <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
-          <p className="text-[#9CA3AF] text-center">Loading...</p>
-        </div>
+    content = (
+      <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
+        <p className="text-[#9CA3AF] text-center">Loading...</p>
       </div>
     );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen py-16 px-6 lg:px-10">
-        <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
-          <p className="text-red-400 text-center">Error: {error}</p>
-        </div>
+  } else if (error) {
+    content = (
+      <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
+        <p className="text-red-400 text-center">Error: {error}</p>
       </div>
     );
-  }
-
-  return (
-    <div className="min-h-screen py-16 px-6 lg:px-10">
+  } else {
+    content = (
       <div className="mx-auto w-full max-w-2xl md:max-w-3xl lg:max-w-4xl">
         <div className="flex justify-between items-center mb-10">
           <h1 className="text-3xl font-semibold text-white">Our Latest News</h1>
@@ -281,6 +309,20 @@ export default function PostsPage() {
           onCancel={() => setPostToEdit(null)}
         />
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="min-h-screen py-16 px-6 lg:px-10">
+        {content}
+      </div>
+      <DevPanel
+        onClearPosts={handleClearPosts}
+        onSeedData={handleSeedData}
+        throttleEnabled={throttleEnabled}
+        onToggleThrottle={setThrottleEnabled}
+      />
+    </>
   );
 }
